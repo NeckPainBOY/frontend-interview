@@ -1,0 +1,4 @@
+
+
+# reduce(callbackFn, initialValue)
+

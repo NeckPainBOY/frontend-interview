@@ -142,5 +142,169 @@ ECMAScript 6 新增的引用类型`Promise`，可以通过`new`操作符来实�
 ### 11.2.3 期约的实例方法
 1) 在`ECMAScript`暴露的异步节奏中，任何对象都有一个then()方法。
 
-#### 1.Promise.prototype.then()
-Promise.prototype.then()是为期约实例添加处理程序的主要方法。这个 then()方法接收最多两个参数：`onResolved`处理程序和`onRejected`处理程序。
+#### 1. 实现 Thenable 接口
+
+#### 2.Promise.prototype.then()
+Promise.prototype.then()是为期约实例添加处理程序的主要方法。这个 then()方法接收最多两个参数：`onResolved`处理程序和`onRejected`处理程序。这两个参数都是可选的，如果提供的话，则会在期约分别**进入“兑现”和“拒绝”状态时执行**。
+
+#### 3.Promise.prototype.catch()
+```
+let p = Promise.reject();
+let onRejected = function(e) {
+    setTimeout(console.log, 0, 'rejected');
+}
+// 这两种添加拒绝处理程序的方式是一样的
+p.then(null, onRejected);
+p.catch(onRejected);
+```
+
+#### 4.Promise.prototype.finally()
+Promise.prototype.finally()方法用于给期约添加 onFinally 处理程序，这个处理程序在期约转换为解决或拒绝状态时都会执行。
+
+finally 只有在传入`Promise`时会返回，其他情况按`resolve`中函数执行。
+
+#### 5.非重入期约方法(执行顺序)
+
+#### 6.传递解决值和拒绝理由
+
+#### 7.拒绝期约与拒绝错误处理
+
+#### 8.拒绝期约与拒绝错误处理
+
+### 11.2.4 期约连锁与期约合成
+#### 1. 期约连锁
+把生成期约的代码提取到一个工厂函数中，就可以写成这样：
+```
+function delayedResolve(str) { 
+ return new Promise((resolve, reject) => { 
+ console.log(str); 
+ setTimeout(resolve, 1000); 
+ }); 
+}
+delayedResolve('p1 executor') 
+ .then(() => delayedResolve('p2 executor')) 
+ .then(() => delayedResolve('p3 executor')) 
+ .then(() => delayedResolve('p4 executor')) 
+// p1 executor（1 秒后）
+// p2 executor（2 秒后）
+// p3 executor（# 秒后）
+// p4 executor（4 秒后）
+```
+
+#### 2. 期约图
+
+#### 3. Promise.all()和 Promise.race()
+##### Promise.all()
+Promise.all()静态方法创建的期约会在一组期约全部解决之后再解决。这个静态方法接收一个
+可迭代对象，返回一个新期约：
+
+##### Promise.race()
+Promise.race()静态方法返回一个包装期约，是一组集合中最先解决或拒绝的期约的镜像。这个
+方法接收一个可迭代对象，返回一个新期约：
+
+
+#### 4. 串行期约合成
+
+### 11.2.5 期约扩展
+
+#### 1.期约取消
+
+#### 2. 期约进度通知
+
+
+```
+
+    class TrackablePromise extends Promise { 
+        constructor(executor) { 
+        const notifyHandlers = []; 
+        super((resolve, reject) => { 
+        return executor(resolve, reject, (status) => { 
+            notifyHandlers.map((handler) => handler(status)); 
+            }); 
+        }); 
+        this.notifyHandlers = notifyHandlers; 
+        } 
+        notify(notifyHandler) { 
+            this.notifyHandlers.push(notifyHandler); 
+            return this; 
+        } 
+    }
+
+    let p = new TrackablePromise((resolve, reject, notify) => { 
+        function countdown(x) { 
+        if (x > 0) { 
+            // notify => (status) => { notifyHandlers.map(...)};
+            notify(`${20 * x}% remaining`); 
+            setTimeout(() => countdown(x - 1), 1000); 
+        } else { 
+            resolve();
+        } 
+        } 
+
+    countdown(5); 
+    }); 
+
+    // notify => notify(notifyHandler) { this.notifyHandlers.push;  ....} 
+    p.notify((x) => setTimeout(console.log, 0, 'progress:', x)); 
+    p.then(() => setTimeout(console.log, 0, 'completed')); 
+    // （约 1 秒后）80% remaining  
+    // （约 2 秒后）60% remaining 
+    // （约 3 秒后）40% remaining 
+    // （约 4 秒后）20% remaining 
+    // （约 5 秒后）completed 
+
+```
+
+### 11.3.1 异步函数
+
+#### 1.async
+`async`关键字用于声明异步函数。这个关键字可以用在函数声明、函数表达式、箭头函数和方法上
+
+1. ***异步函数如果使用 return 关键字返回了值（如果没有 return 则会返回 undefined），这个值会被 Promise.resolve()包装成一个期约对象。***
+2. 异步函数的返回值期待（但实际上并不要求）一个实现 thenable 接口的对象，但常规的值也可以。
+
+
+#### 2. await
+因为异步函数主要针对不会马上完成的任务，所以自然需要一种暂停和恢复执行的能力。使用`await`关键字可以暂停异步函数代码的执行，等待期约解决。
+await 的函数会等待执行， await 下面的函数会通过Promise包装，XXXX.then(fn())执行;
+
+
+[chrome 70 和 73 async执行顺序不一致问题]：https://segmentfault.com/q/1010000016147496
+
+1. Resolve(thenable) 不等于 Promise.resolve(thenable)
+2. Resolve(non-thenable) 等价于 Promise.resolve(non-thenable)
+
+```
+70 版本：
+Resolve(thenable) 转化为 Promise.resolve(thenable):
+
+new Promise(resolve => {resolve(thenable)})
+
+new Promise(resolve => {Promise.resolve().then(()=>{thenable.then(resolve)})})
+
+async function async1 
+    {await asyncFn()} 等价于：async1 使用 new Promise 包装
+
+new Promise(resolve => {
+    resolve(async2());
+})
+可以转化为：
+
+new Promise(resolve => {Promise.resolve().then(()=>{async2.then(resolve)})})
+```
+
+```
+73 版本：
+ 根据 TC39 最近决议，await将直接使用Promise.resolve()相同语义。
+ 
+ async1 使用 Promise.resolve 包装：
+ 所以 Promise.resolve(promise) 返回 promise, 即Promise.resolve(async2()) 等价于 async2() ，所以最终得到了代码：
+ async2().then(()=>{
+    XXXX
+ })
+
+```
+
+### 11.3.2 停止和恢复执行
+
+async/await 中 await 接收函数为 thenable
